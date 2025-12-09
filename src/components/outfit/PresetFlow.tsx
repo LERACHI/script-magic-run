@@ -4,10 +4,26 @@ import { Card } from "@/components/ui/card";
 import { ImageUpload } from "./ImageUpload";
 import { ResultDisplay } from "./ResultDisplay";
 import { OutfitGrid } from "./OutfitGrid";
+import { ImageSettings, ImageSettingsData } from "./ImageSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { outfitPresets, OutfitPreset } from "@/lib/outfitData";
 import { Loader2, Wand2 } from "lucide-react";
+
+const backgroundPrompts: Record<string, string> = {
+  studio: "professional photography studio with neutral gray backdrop",
+  colorful: "vibrant colorful gradient background",
+  street: "urban street photography setting",
+  nature: "natural outdoor environment with greenery",
+  office: "modern corporate office environment",
+};
+
+const posePrompts: Record<string, string> = {
+  frontal: "facing directly towards camera",
+  side: "turned to the side in profile view",
+  casual: "relaxed casual standing pose",
+  professional: "confident professional business pose",
+};
 
 export const PresetFlow = () => {
   const [personImage, setPersonImage] = useState<File | null>(null);
@@ -15,6 +31,12 @@ export const PresetFlow = () => {
   const [selectedOutfit, setSelectedOutfit] = useState<OutfitPreset | null>(null);
   const [resultImage, setResultImage] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [imageSettings, setImageSettings] = useState<ImageSettingsData>({
+    background: "studio",
+    pose: "frontal",
+    format: "1:1",
+    usage: "marketplace",
+  });
   const { toast } = useToast();
 
   const handlePersonImageChange = (file: File | null) => {
@@ -46,6 +68,13 @@ export const PresetFlow = () => {
     return publicUrl;
   };
 
+  const buildEnhancedPrompt = (basePrompt: string): string => {
+    const bgPrompt = backgroundPrompts[imageSettings.background] || "";
+    const posePrompt = posePrompts[imageSettings.pose] || "";
+    
+    return `${basePrompt}. Setting: ${bgPrompt}. Pose: ${posePrompt}. Optimized for ${imageSettings.usage} use.`;
+  };
+
   const handleGenerate = async () => {
     if (!personImage || !selectedOutfit) {
       toast({
@@ -61,20 +90,21 @@ export const PresetFlow = () => {
 
     try {
       const personUrl = await uploadImage(personImage);
+      const enhancedPrompt = buildEnhancedPrompt(selectedOutfit.prompt);
 
       const { data: editData, error: editError } = await supabase.functions.invoke(
         'edit-outfit',
         {
           body: {
             personImageUrl: personUrl,
-            prompt: selectedOutfit.prompt,
+            prompt: enhancedPrompt,
+            format: imageSettings.format,
           },
         }
       );
 
       if (editError) throw editError;
 
-      // The image comes as base64, convert it to display format
       const imageUrl = editData.imageData 
         ? `data:image/jpeg;base64,${editData.imageData}`
         : editData.editedImageUrl;
@@ -101,11 +131,17 @@ export const PresetFlow = () => {
     setPersonPreview("");
     setSelectedOutfit(null);
     setResultImage("");
+    setImageSettings({
+      background: "studio",
+      pose: "frontal",
+      format: "1:1",
+      usage: "marketplace",
+    });
   };
 
   return (
-    <div className="grid md:grid-cols-3 gap-6">
-      <Card className="p-6 bg-card/50 backdrop-blur border-border">
+    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <Card className="p-4 bg-card/50 backdrop-blur border-border">
         <h3 className="text-lg font-semibold mb-4 text-foreground">Sua Foto</h3>
         <ImageUpload
           onImageChange={handlePersonImageChange}
@@ -114,12 +150,20 @@ export const PresetFlow = () => {
         />
       </Card>
 
-      <Card className="p-6 bg-card/50 backdrop-blur border-border">
+      <Card className="p-4 bg-card/50 backdrop-blur border-border">
         <h3 className="text-lg font-semibold mb-4 text-foreground">Escolha a Roupa</h3>
         <OutfitGrid
           outfits={outfitPresets}
           selectedOutfit={selectedOutfit}
           onSelectOutfit={setSelectedOutfit}
+        />
+      </Card>
+
+      <Card className="p-4 bg-card/50 backdrop-blur border-border">
+        <h3 className="text-lg font-semibold mb-4 text-foreground">Configurações</h3>
+        <ImageSettings
+          settings={imageSettings}
+          onSettingsChange={setImageSettings}
         />
         <Button
           onClick={handleGenerate}
@@ -141,7 +185,7 @@ export const PresetFlow = () => {
         </Button>
       </Card>
 
-      <Card className="p-6 bg-card/50 backdrop-blur border-border">
+      <Card className="p-4 bg-card/50 backdrop-blur border-border">
         <ResultDisplay 
           resultImage={resultImage} 
           isProcessing={isProcessing}
