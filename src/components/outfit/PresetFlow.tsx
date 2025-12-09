@@ -68,11 +68,18 @@ export const PresetFlow = () => {
     return publicUrl;
   };
 
+  const formatPrompts: Record<string, string> = {
+    "1:1": "square aspect ratio 1:1, centered composition",
+    "3:4": "portrait aspect ratio 3:4, vertical framing, full body visible from head to feet",
+    "16:9": "landscape aspect ratio 16:9, wide horizontal framing",
+  };
+
   const buildEnhancedPrompt = (basePrompt: string): string => {
     const bgPrompt = backgroundPrompts[imageSettings.background] || "";
     const posePrompt = posePrompts[imageSettings.pose] || "";
+    const formatPrompt = formatPrompts[imageSettings.format] || "";
     
-    return `${basePrompt}. Setting: ${bgPrompt}. Pose: ${posePrompt}. Optimized for ${imageSettings.usage} use.`;
+    return `${basePrompt}. Setting: ${bgPrompt}. Pose: ${posePrompt}. Image format: ${formatPrompt}. Optimized for ${imageSettings.usage} use.`;
   };
 
   const handleGenerate = async () => {

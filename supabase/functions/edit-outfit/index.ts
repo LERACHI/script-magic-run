@@ -12,7 +12,17 @@ serve(async (req) => {
   }
 
   try {
-    const { personImageUrl, prompt } = await req.json();
+    const { personImageUrl, prompt, format } = await req.json();
+    
+    // Map format to image dimensions
+    const formatDimensions: Record<string, { width: number; height: number }> = {
+      "1:1": { width: 1024, height: 1024 },
+      "3:4": { width: 768, height: 1024 },
+      "16:9": { width: 1280, height: 720 },
+    };
+    
+    const dimensions = formatDimensions[format] || formatDimensions["1:1"];
+    console.log('Requested format:', format, 'Dimensions:', dimensions);
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 
     if (!lovableApiKey) {
@@ -44,7 +54,7 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: prompt
+                text: `${prompt} IMPORTANT: Generate the output image with exact dimensions ${dimensions.width}x${dimensions.height} pixels (${format} aspect ratio). The image MUST match this aspect ratio precisely.`
               },
               {
                 type: 'image_url',
