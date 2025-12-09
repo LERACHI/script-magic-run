@@ -156,7 +156,7 @@ export const CustomUploadFlow = () => {
         <Button
           onClick={handleGenerate}
           disabled={!personImage || !clothingImage || isProcessing}
-          className="w-full mt-4 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
+          className="w-full mt-4"
           size="lg"
         >
           {isProcessing ? (
