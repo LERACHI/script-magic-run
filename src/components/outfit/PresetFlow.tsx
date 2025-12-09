@@ -124,7 +124,7 @@ export const PresetFlow = () => {
         <Button
           onClick={handleGenerate}
           disabled={!personImage || !selectedOutfit || isProcessing}
-          className="w-full mt-4 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
+          className="w-full mt-4 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           size="lg"
         >
           {isProcessing ? (
