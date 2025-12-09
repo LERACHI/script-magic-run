@@ -54,7 +54,7 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: `${prompt} IMPORTANT: Generate the output image with exact dimensions ${dimensions.width}x${dimensions.height} pixels (${format} aspect ratio). The image MUST match this aspect ratio precisely.`
+                text: `${prompt} CRITICAL OUTPUT REQUIREMENTS: Generate the image in ${format} aspect ratio (${dimensions.width}x${dimensions.height}). The ENTIRE person must be visible in frame - do NOT crop any body parts. Include complete head-to-toe view with padding around the subject. Never cut off hands, feet, or head.`
               },
               {
                 type: 'image_url',

@@ -32,7 +32,7 @@ export const ResultDisplay = ({ resultImage, isProcessing, onReset }: ResultDisp
             <img
               src={resultImage}
               alt="Result"
-              className="w-full h-64 object-cover rounded-lg border-2 border-primary shadow-glow"
+              className="w-full rounded-lg border-2 border-primary shadow-glow object-contain"
             />
           </div>
           <div className="flex gap-2">
