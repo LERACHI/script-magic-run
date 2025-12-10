@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
 import { ImageUpload } from "./ImageUpload";
 import { ResultDisplay } from "./ResultDisplay";
 import { OutfitGrid } from "./OutfitGrid";
@@ -29,14 +34,25 @@ export const PresetFlow = () => {
   const [personImage, setPersonImage] = useState<File | null>(null);
   const [personPreview, setPersonPreview] = useState<string>("");
   const [selectedOutfit, setSelectedOutfit] = useState<OutfitPreset | null>(null);
-  const [resultImage, setResultImage] = useState<string>("");
+  const [resultImages, setResultImages] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [referenceView, setReferenceView] = useState<string>("frente");
+  const [productDetails, setProductDetails] = useState<string>("");
+  const [logoImage, setLogoImage] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>("");
+  const [logoPosition, setLogoPosition] = useState<string>("top-right");
+  const [logoOpacity, setLogoOpacity] = useState<number>(80);
+  const [removeBackground, setRemoveBackground] = useState<boolean>(false);
   const [imageSettings, setImageSettings] = useState<ImageSettingsData>({
+    prompt: "",
+    style: "Fotorealista",
+    fidelity: 7,
     background: "studio",
     pose: "frontal",
     format: "1:1",
     usage: "marketplace",
   });
+  const configRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const handlePersonImageChange = (file: File | null) => {
@@ -50,20 +66,29 @@ export const PresetFlow = () => {
     }
   };
 
+  const handleLogoChange = (file: File | null) => {
+    setLogoImage(file);
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => setLogoPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setLogoPreview("");
+    }
+  };
+
   const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
+    const fileExt = file.name.split(".").pop();
     const fileName = `person-${Date.now()}.${fileExt}`;
     const filePath = `${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('outfit-images')
-      .upload(filePath, file);
+    const { error: uploadError } = await supabase.storage.from("outfit-images").upload(filePath, file);
 
     if (uploadError) throw uploadError;
 
-    const { data: { publicUrl } } = supabase.storage
-      .from('outfit-images')
-      .getPublicUrl(filePath);
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("outfit-images").getPublicUrl(filePath);
 
     return publicUrl;
   };
@@ -78,8 +103,17 @@ export const PresetFlow = () => {
     const bgPrompt = backgroundPrompts[imageSettings.background] || "";
     const posePrompt = posePrompts[imageSettings.pose] || "";
     const formatPrompt = formatPrompts[imageSettings.format] || "";
-    
-    return `${basePrompt}. Setting: ${bgPrompt}. Pose: ${posePrompt}. Image format: ${formatPrompt}. Optimized for ${imageSettings.usage} use.`;
+    const scenePrompt = imageSettings.prompt?.trim();
+    const stylePrompt = imageSettings.style ? `Visual style: ${imageSettings.style}.` : "";
+    const fidelityPrompt = `Fidelity: ${imageSettings.fidelity}/10 (1=mais criativo, 10=mais fiel ao prompt).`;
+    const referencePrompt = referenceView ? `Reference view: ${referenceView}.` : "";
+    const detailsPrompt = productDetails.trim() ? `Product details: ${productDetails.trim()}.` : "";
+    const removeBgPrompt = removeBackground ? "Remove background from the uploaded person image, clean silhouette." : "";
+    const logoPrompt = logoImage ? `Place brand logo (uploaded) at ${logoPosition} with opacity ${logoOpacity}%.` : "";
+
+    const detailedScene = scenePrompt ? `User scene: ${scenePrompt}.` : "";
+
+    return `${basePrompt}. ${detailedScene} ${stylePrompt} ${detailsPrompt} ${referencePrompt} ${removeBgPrompt} ${logoPrompt} Setting: ${bgPrompt}. Pose: ${posePrompt}. Image format: ${formatPrompt}. ${fidelityPrompt} Optimized for ${imageSettings.usage} use.`;
   };
 
   const handleGenerate = async () => {
@@ -93,36 +127,30 @@ export const PresetFlow = () => {
     }
 
     setIsProcessing(true);
-    setResultImage("");
 
     try {
       const personUrl = await uploadImage(personImage);
       const enhancedPrompt = buildEnhancedPrompt(selectedOutfit.prompt);
 
-      const { data: editData, error: editError } = await supabase.functions.invoke(
-        'edit-outfit',
-        {
-          body: {
-            personImageUrl: personUrl,
-            prompt: enhancedPrompt,
-            format: imageSettings.format,
-          },
-        }
-      );
+      const { data: editData, error: editError } = await supabase.functions.invoke("edit-outfit", {
+        body: {
+          personImageUrl: personUrl,
+          prompt: enhancedPrompt,
+          format: imageSettings.format,
+        },
+      });
 
       if (editError) throw editError;
 
-      const imageUrl = editData.imageData 
-        ? `data:image/jpeg;base64,${editData.imageData}`
-        : editData.editedImageUrl;
+      const imageUrl = editData.imageData ? `data:image/jpeg;base64,${editData.imageData}` : editData.editedImageUrl;
 
-      setResultImage(imageUrl);
+      setResultImages((prev) => [imageUrl, ...prev].slice(0, 4));
       toast({
         title: "Sucesso!",
         description: "Sua imagem foi gerada com sucesso!",
       });
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
       toast({
         title: "Erro",
         description: "Ocorreu um erro ao processar a imagem. Tente novamente.",
@@ -137,8 +165,18 @@ export const PresetFlow = () => {
     setPersonImage(null);
     setPersonPreview("");
     setSelectedOutfit(null);
-    setResultImage("");
+    setResultImages([]);
+    setReferenceView("frente");
+    setProductDetails("");
+    setLogoImage(null);
+    setLogoPreview("");
+    setLogoPosition("top-right");
+    setLogoOpacity(80);
+    setRemoveBackground(false);
     setImageSettings({
+      prompt: "",
+      style: "Fotorealista",
+      fidelity: 7,
       background: "studio",
       pose: "frontal",
       format: "1:1",
@@ -150,33 +188,98 @@ export const PresetFlow = () => {
     <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
       <Card className="p-4 bg-card/50 backdrop-blur border-border">
         <h3 className="text-lg font-semibold mb-4 text-foreground">Sua Foto</h3>
-        <ImageUpload
-          onImageChange={handlePersonImageChange}
-          preview={personPreview}
-          label="Fazer upload da foto"
-        />
+        <ImageUpload onImageChange={handlePersonImageChange} preview={personPreview} label="Fazer upload da foto" />
+
+        <div className="mt-4 space-y-4">
+          <div className="flex items-center space-x-2">
+            <Checkbox id="remove-bg" checked={removeBackground} onCheckedChange={(val) => setRemoveBackground(!!val)} />
+            <Label htmlFor="remove-bg" className="text-sm text-foreground cursor-pointer">
+              Remover fundo da imagem de upload
+            </Label>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground block">Logotipo da Marca</Label>
+            <ImageUpload
+              onImageChange={handleLogoChange}
+              preview={logoPreview}
+              label="Fazer upload do logotipo"
+              inputId="brand-logo"
+            />
+            <div className="mt-2 space-y-2">
+              <Label className="text-xs text-muted-foreground block">Posicionamento</Label>
+              <RadioGroup value={logoPosition} onValueChange={setLogoPosition} className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "top-left", label: "Canto Superior Esquerdo" },
+                  { value: "top-right", label: "Canto Superior Direito" },
+                  { value: "bottom-left", label: "Canto Inferior Esquerdo" },
+                  { value: "bottom-right", label: "Canto Inferior Direito" },
+                ].map((opt) => (
+                  <div key={opt.value} className="flex items-center space-x-2">
+                    <RadioGroupItem value={opt.value} id={`logo-${opt.value}`} />
+                    <Label htmlFor={`logo-${opt.value}`} className="text-sm cursor-pointer">
+                      {opt.label}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Opacidade do Logotipo</span>
+                <span>{logoOpacity}%</span>
+              </div>
+              <Slider value={[logoOpacity]} min={0} max={100} step={5} onValueChange={(val) => setLogoOpacity(val[0])} />
+            </div>
+          </div>
+        </div>
       </Card>
 
       <Card className="p-4 bg-card/50 backdrop-blur border-border">
         <h3 className="text-lg font-semibold mb-4 text-foreground">Escolha a Roupa</h3>
-        <OutfitGrid
-          outfits={outfitPresets}
-          selectedOutfit={selectedOutfit}
-          onSelectOutfit={setSelectedOutfit}
-        />
+        <OutfitGrid outfits={outfitPresets} selectedOutfit={selectedOutfit} onSelectOutfit={setSelectedOutfit} />
+        <div className="mt-4 space-y-3">
+          <div>
+            <Label className="text-sm font-medium text-foreground mb-2 block">Imagem de Referência</Label>
+            <RadioGroup value={referenceView} onValueChange={setReferenceView} className="grid grid-cols-3 gap-2">
+              {[
+                { value: "frente", label: "Frente" },
+                { value: "costas", label: "Costas" },
+                { value: "detalhe", label: "Detalhe" },
+              ].map((opt) => (
+                <div key={opt.value} className="flex items-center space-x-2">
+                  <RadioGroupItem value={opt.value} id={`ref-${opt.value}`} />
+                  <Label htmlFor={`ref-${opt.value}`} className="text-sm cursor-pointer">
+                    {opt.label}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground block">Detalhes do Produto para a IA (Opcional)</Label>
+            <Textarea
+              value={productDetails}
+              onChange={(e) => setProductDetails(e.target.value)}
+              placeholder="Ex: Foco no tecido de linho, evite gola dobrada."
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">Ex: Foco no tecido de linho, evite gola dobrada.</p>
+          </div>
+        </div>
       </Card>
 
-      <Card className="p-4 bg-card/50 backdrop-blur border-border">
+      <Card ref={configRef} className="p-4 bg-card/50 backdrop-blur border-border">
         <h3 className="text-lg font-semibold mb-4 text-foreground">Configurações</h3>
-        <ImageSettings
-          settings={imageSettings}
-          onSettingsChange={setImageSettings}
-        />
+        <ImageSettings settings={imageSettings} onSettingsChange={setImageSettings} />
         <Button
           onClick={handleGenerate}
           disabled={!personImage || !selectedOutfit || isProcessing}
           className="w-full mt-4"
           size="lg"
+          title={!selectedOutfit ? "Selecione uma roupa para habilitar a geração" : undefined}
         >
           {isProcessing ? (
             <>
@@ -190,13 +293,24 @@ export const PresetFlow = () => {
             </>
           )}
         </Button>
+        {!selectedOutfit && (
+          <p className="mt-2 text-xs text-destructive">
+            Selecione pelo menos uma roupa na coluna "Escolha a Roupa" para gerar a imagem.
+          </p>
+        )}
       </Card>
 
-      <Card className="p-4 bg-card/50 backdrop-blur border-border">
-        <ResultDisplay 
-          resultImage={resultImage} 
+      <Card
+        className={`p-4 bg-card/50 backdrop-blur border-border transition-all ${
+          isProcessing || resultImages.length ? "lg:col-span-2" : ""
+        }`}
+      >
+        <ResultDisplay
+          primaryImage={resultImages[0]}
+          gallery={resultImages}
           isProcessing={isProcessing}
           onReset={handleReset}
+          onRefine={() => configRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
         />
       </Card>
     </div>

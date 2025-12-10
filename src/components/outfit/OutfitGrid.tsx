@@ -1,6 +1,5 @@
+import { cn } from "@/lib/utils";
 import { OutfitPreset } from "@/lib/outfitData";
-import { Card } from "@/components/ui/card";
-import { Check } from "lucide-react";
 
 interface OutfitGridProps {
   outfits: OutfitPreset[];
@@ -10,32 +9,31 @@ interface OutfitGridProps {
 
 export const OutfitGrid = ({ outfits, selectedOutfit, onSelectOutfit }: OutfitGridProps) => {
   return (
-    <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-      {outfits.map((outfit) => (
-        <Card
-          key={outfit.id}
-          onClick={() => onSelectOutfit(outfit)}
-          className={`relative cursor-pointer transition-all hover:scale-105 ${
-            selectedOutfit?.id === outfit.id
-              ? 'ring-2 ring-primary shadow-glow'
-              : 'hover:border-primary/50'
-          }`}
-        >
-          <img
-            src={outfit.imageUrl}
-            alt={outfit.name}
-            className="w-full h-32 object-cover rounded-t-lg"
-          />
-          <div className="p-2">
-            <p className="text-xs font-medium text-foreground truncate">{outfit.name}</p>
-          </div>
-          {selectedOutfit?.id === outfit.id && (
-            <div className="absolute top-2 right-2 bg-primary rounded-full p-1">
-              <Check className="w-4 h-4 text-primary-foreground" />
+    <div className="grid grid-cols-2 gap-3">
+      {outfits.map((outfit) => {
+        const isActive = selectedOutfit?.id === outfit.id;
+        return (
+          <button
+            key={outfit.id}
+            type="button"
+            onClick={() => onSelectOutfit(outfit)}
+            className={cn(
+              "group relative rounded-lg border bg-card/60 p-2 text-left transition hover:border-primary hover:shadow",
+              isActive && "border-primary ring-2 ring-primary/30"
+            )}
+          >
+            <div className="aspect-square overflow-hidden rounded-md border bg-background/50">
+              <img src={outfit.imageUrl} alt={outfit.name} className="h-full w-full object-cover" />
             </div>
-          )}
-        </Card>
-      ))}
+            <div className="mt-2 text-sm font-medium text-foreground">{outfit.name}</div>
+            {isActive && (
+              <span className="absolute right-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase text-primary-foreground">
+                Selecionada
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 };

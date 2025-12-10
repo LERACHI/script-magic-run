@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ImageUpload } from "./ImageUpload";
@@ -12,10 +12,11 @@ export const CustomUploadFlow = () => {
   const [clothingImage, setClothingImage] = useState<File | null>(null);
   const [personPreview, setPersonPreview] = useState<string>("");
   const [clothingPreview, setClothingPreview] = useState<string>("");
-  const [resultImage, setResultImage] = useState<string>("");
+  const [resultImages, setResultImages] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState("");
   const { toast } = useToast();
+  const configRef = useRef<HTMLDivElement>(null);
 
   const handlePersonImageChange = (file: File | null) => {
     setPersonImage(file);
@@ -68,7 +69,6 @@ export const CustomUploadFlow = () => {
     }
 
     setIsProcessing(true);
-    setResultImage("");
 
     try {
       // Step 1: Upload images
@@ -109,7 +109,7 @@ export const CustomUploadFlow = () => {
       ? `data:image/jpeg;base64,${editData.imageData}`
       : editData.editedImageUrl;
 
-    setResultImage(imageUrl);
+    setResultImages((prev) => [imageUrl, ...prev].slice(0, 4));
       toast({
         title: "Sucesso!",
         description: "Sua imagem foi gerada com sucesso!",
@@ -132,7 +132,7 @@ export const CustomUploadFlow = () => {
     setClothingImage(null);
     setPersonPreview("");
     setClothingPreview("");
-    setResultImage("");
+    setResultImages([]);
   };
 
   return (
@@ -146,7 +146,7 @@ export const CustomUploadFlow = () => {
         />
       </Card>
 
-      <Card className="p-6 bg-card/50 backdrop-blur border-border">
+      <Card ref={configRef} className="p-6 bg-card/50 backdrop-blur border-border">
         <h3 className="text-lg font-semibold mb-4 text-foreground">Foto da Roupa</h3>
         <ImageUpload
           onImageChange={handleClothingImageChange}
@@ -178,11 +178,17 @@ export const CustomUploadFlow = () => {
         )}
       </Card>
 
-      <Card className="p-6 bg-card/50 backdrop-blur border-border">
-        <ResultDisplay 
-          resultImage={resultImage} 
+      <Card
+        className={`p-6 bg-card/50 backdrop-blur border-border transition-all ${
+          isProcessing || resultImages.length ? "md:col-span-2" : ""
+        }`}
+      >
+        <ResultDisplay
+          primaryImage={resultImages[0]}
+          gallery={resultImages}
           isProcessing={isProcessing}
           onReset={handleReset}
+          onRefine={() => configRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
         />
       </Card>
     </div>

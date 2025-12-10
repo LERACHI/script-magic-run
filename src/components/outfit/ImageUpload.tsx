@@ -6,10 +6,13 @@ interface ImageUploadProps {
   onImageChange: (file: File | null) => void;
   preview: string;
   label: string;
+  inputId?: string;
 }
 
-export const ImageUpload = ({ onImageChange, preview, label }: ImageUploadProps) => {
+export const ImageUpload = ({ onImageChange, preview, label, inputId }: ImageUploadProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const safeId =
+    inputId || `file-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Math.abs(label.length)}`;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -33,7 +36,7 @@ export const ImageUpload = ({ onImageChange, preview, label }: ImageUploadProps)
         accept="image/*"
         onChange={handleFileChange}
         className="hidden"
-        id={`file-${label}`}
+        id={safeId}
       />
       
       {preview ? (
@@ -54,7 +57,7 @@ export const ImageUpload = ({ onImageChange, preview, label }: ImageUploadProps)
         </div>
       ) : (
         <label
-          htmlFor={`file-${label}`}
+          htmlFor={safeId}
           className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors bg-background/50"
         >
           <Upload className="w-12 h-12 text-muted-foreground mb-2" />
