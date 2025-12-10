@@ -12,7 +12,12 @@ serve(async (req) => {
   }
 
   try {
-    const { personImageUrl, prompt, format } = await req.json();
+    const { 
+      personImageUrl, 
+      prompt, 
+      format,
+      removeBackground
+    } = await req.json();
     
     // Map format to image dimensions
     const formatDimensions: Record<string, { width: number; height: number }> = {
@@ -37,7 +42,30 @@ serve(async (req) => {
     const base64Image = btoa(
       new Uint8Array(imageBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
     );
-    const imageDataUrl = `data:image/jpeg;base64,${base64Image}`;
+    const personImageDataUrl = `data:image/jpeg;base64,${base64Image}`;
+
+    // Build message content dynamically
+    const content: any[] = [];
+    let updatedPrompt = prompt;
+
+    if (removeBackground) {
+      updatedPrompt = `First remove the background from the uploaded person image, produce a clean silhouette. Then, follow the main prompt: ${prompt}`;
+      console.log('Added removeBackground instruction to prompt.');
+    }
+
+    content.push({
+      type: 'text',
+      text: `${updatedPrompt} CRITICAL OUTPUT REQUIREMENTS: Generate the image in ${format} aspect ratio (${dimensions.width}x${dimensions.height}). The ENTIRE person must be visible in frame - do NOT crop any body parts. Include complete head-to-toe view with padding around the subject. Never cut off hands, feet, or head.`
+    });
+
+    // Person image
+    content.push({
+      type: 'image_url',
+      image_url: { url: personImageDataUrl }
+    });
+
+    // Build a strict system prompt (logo handling removed)
+    const systemPrompt = `You are a strict image compositor. Do not invent or add any logos, watermarks, text, icons, or badges. Follow the user's instructions exactly and keep the person fully in frame.`;
 
     // Call Lovable AI Gateway with Nano Banana model
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -48,21 +76,17 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash-image-preview',
+        temperature: 0,
+        presence_penalty: 0,
+        frequency_penalty: 0,
         messages: [
           {
+            role: 'system',
+            content: [{ type: 'text', text: systemPrompt }],
+          },
+          {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `${prompt} CRITICAL OUTPUT REQUIREMENTS: Generate the image in ${format} aspect ratio (${dimensions.width}x${dimensions.height}). The ENTIRE person must be visible in frame - do NOT crop any body parts. Include complete head-to-toe view with padding around the subject. Never cut off hands, feet, or head.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: imageDataUrl
-                }
-              }
-            ]
+            content
           }
         ],
         modalities: ['image', 'text']

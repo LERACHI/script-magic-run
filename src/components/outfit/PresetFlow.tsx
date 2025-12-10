@@ -5,7 +5,6 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Slider } from "@/components/ui/slider";
 import { ImageUpload } from "./ImageUpload";
 import { ResultDisplay } from "./ResultDisplay";
 import { OutfitGrid } from "./OutfitGrid";
@@ -38,10 +37,7 @@ export const PresetFlow = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [referenceView, setReferenceView] = useState<string>("frente");
   const [productDetails, setProductDetails] = useState<string>("");
-  const [logoImage, setLogoImage] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string>("");
-  const [logoPosition, setLogoPosition] = useState<string>("top-right");
-  const [logoOpacity, setLogoOpacity] = useState<number>(80);
+  const [seasonFilter, setSeasonFilter] = useState<string>("todas");
   const [removeBackground, setRemoveBackground] = useState<boolean>(false);
   const [imageSettings, setImageSettings] = useState<ImageSettingsData>({
     prompt: "",
@@ -66,24 +62,12 @@ export const PresetFlow = () => {
     }
   };
 
-  const handleLogoChange = (file: File | null) => {
-    setLogoImage(file);
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => setLogoPreview(reader.result as string);
-      reader.readAsDataURL(file);
-    } else {
-      setLogoPreview("");
-    }
-  };
-
   const uploadImage = async (file: File): Promise<string> => {
     const fileExt = file.name.split(".").pop();
     const fileName = `person-${Date.now()}.${fileExt}`;
     const filePath = `${fileName}`;
 
     const { error: uploadError } = await supabase.storage.from("outfit-images").upload(filePath, file);
-
     if (uploadError) throw uploadError;
 
     const {
@@ -109,11 +93,10 @@ export const PresetFlow = () => {
     const referencePrompt = referenceView ? `Reference view: ${referenceView}.` : "";
     const detailsPrompt = productDetails.trim() ? `Product details: ${productDetails.trim()}.` : "";
     const removeBgPrompt = removeBackground ? "Remove background from the uploaded person image, clean silhouette." : "";
-    const logoPrompt = logoImage ? `Place brand logo (uploaded) at ${logoPosition} with opacity ${logoOpacity}%.` : "";
 
     const detailedScene = scenePrompt ? `User scene: ${scenePrompt}.` : "";
 
-    return `${basePrompt}. ${detailedScene} ${stylePrompt} ${detailsPrompt} ${referencePrompt} ${removeBgPrompt} ${logoPrompt} Setting: ${bgPrompt}. Pose: ${posePrompt}. Image format: ${formatPrompt}. ${fidelityPrompt} Optimized for ${imageSettings.usage} use.`;
+    return `${basePrompt}. ${detailedScene} ${stylePrompt} ${detailsPrompt} ${referencePrompt} ${removeBgPrompt} Setting: ${bgPrompt}. Pose: ${posePrompt}. Image format: ${formatPrompt}. ${fidelityPrompt} Optimized for ${imageSettings.usage} use.`;
   };
 
   const handleGenerate = async () => {
@@ -137,6 +120,7 @@ export const PresetFlow = () => {
           personImageUrl: personUrl,
           prompt: enhancedPrompt,
           format: imageSettings.format,
+          removeBackground,
         },
       });
 
@@ -168,10 +152,6 @@ export const PresetFlow = () => {
     setResultImages([]);
     setReferenceView("frente");
     setProductDetails("");
-    setLogoImage(null);
-    setLogoPreview("");
-    setLogoPosition("top-right");
-    setLogoOpacity(80);
     setRemoveBackground(false);
     setImageSettings({
       prompt: "",
@@ -197,48 +177,51 @@ export const PresetFlow = () => {
               Remover fundo da imagem de upload
             </Label>
           </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium text-foreground block">Logotipo da Marca</Label>
-            <ImageUpload
-              onImageChange={handleLogoChange}
-              preview={logoPreview}
-              label="Fazer upload do logotipo"
-              inputId="brand-logo"
-            />
-            <div className="mt-2 space-y-2">
-              <Label className="text-xs text-muted-foreground block">Posicionamento</Label>
-              <RadioGroup value={logoPosition} onValueChange={setLogoPosition} className="grid grid-cols-2 gap-2">
-                {[
-                  { value: "top-left", label: "Canto Superior Esquerdo" },
-                  { value: "top-right", label: "Canto Superior Direito" },
-                  { value: "bottom-left", label: "Canto Inferior Esquerdo" },
-                  { value: "bottom-right", label: "Canto Inferior Direito" },
-                ].map((opt) => (
-                  <div key={opt.value} className="flex items-center space-x-2">
-                    <RadioGroupItem value={opt.value} id={`logo-${opt.value}`} />
-                    <Label htmlFor={`logo-${opt.value}`} className="text-sm cursor-pointer">
-                      {opt.label}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Opacidade do Logotipo</span>
-                <span>{logoOpacity}%</span>
-              </div>
-              <Slider value={[logoOpacity]} min={0} max={100} step={5} onValueChange={(val) => setLogoOpacity(val[0])} />
-            </div>
-          </div>
         </div>
       </Card>
 
       <Card className="p-4 bg-card/50 backdrop-blur border-border">
         <h3 className="text-lg font-semibold mb-4 text-foreground">Escolha a Roupa</h3>
-        <OutfitGrid outfits={outfitPresets} selectedOutfit={selectedOutfit} onSelectOutfit={setSelectedOutfit} />
+        <div className="mb-3 space-y-2">
+          <Label className="text-sm font-medium text-foreground block">Estação do Ano</Label>
+          <RadioGroup
+            value={seasonFilter}
+            onValueChange={(val) => {
+              setSeasonFilter(val);
+              if (selectedOutfit && val !== "todas" && !selectedOutfit.seasons.includes(val)) {
+                setSelectedOutfit(null);
+              }
+            }}
+            className="grid grid-cols-2 gap-2"
+          >
+            {[
+              { value: "todas", label: "Todas" },
+              { value: "primavera", label: "Primavera" },
+              { value: "verao", label: "Verão" },
+              { value: "outono", label: "Outono" },
+              { value: "inverno", label: "Inverno" },
+            ].map((opt) => (
+              <div key={opt.value} className="flex items-center space-x-2">
+                <RadioGroupItem value={opt.value} id={`season-${opt.value}`} />
+                <Label htmlFor={`season-${opt.value}`} className="text-sm cursor-pointer">
+                  {opt.label}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
+          <p className="text-xs text-muted-foreground">
+            A estação sugere looks adequados ao clima selecionado.
+          </p>
+        </div>
+        <OutfitGrid
+          outfits={
+            seasonFilter === "todas"
+              ? outfitPresets
+              : outfitPresets.filter((o) => o.seasons.includes(seasonFilter))
+          }
+          selectedOutfit={selectedOutfit}
+          onSelectOutfit={setSelectedOutfit}
+        />
         <div className="mt-4 space-y-3">
           <div>
             <Label className="text-sm font-medium text-foreground mb-2 block">Imagem de Referência</Label>
