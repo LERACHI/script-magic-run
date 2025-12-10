@@ -11,7 +11,8 @@ import blazerGreenVelvet from "@/assets/blazer-green-velvet.png";
 import overcoatCamel from "@/assets/overcoat-camel.png";
 import jacketDenim from "@/assets/jacket-denim.png";
 
-const placeholder = "/placeholder.svg";
+// Use base-aware URL for placeholder so it works on GitHub Pages subpath
+const placeholder = `${import.meta.env.BASE_URL}placeholder.svg`;
 
 export interface OutfitPreset {
   id: string;
