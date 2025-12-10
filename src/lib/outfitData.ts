@@ -11,8 +11,9 @@ import blazerGreenVelvet from "@/assets/blazer-green-velvet.png";
 import overcoatCamel from "@/assets/overcoat-camel.png";
 import jacketDenim from "@/assets/jacket-denim.png";
 
-// Use base-aware URL for placeholder so it works on GitHub Pages subpath
-const placeholder = `${import.meta.env.BASE_URL}placeholder.svg`;
+// Inline SVG placeholder to avoid broken thumbs on different base paths
+const placeholder =
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' fill='none'><rect width='240' height='240' rx='12' fill='%23f2f2f2'/><path d='M120 60v120 M60 120h120' stroke='%23d0d0d0' stroke-width='10' stroke-linecap='round'/><circle cx='120' cy='120' r='22' stroke='%23d0d0d0' stroke-width='10'/></svg>";
 
 export interface OutfitPreset {
   id: string;
